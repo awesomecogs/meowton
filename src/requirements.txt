@@ -2,3 +2,4 @@ nicegui[plotly]
 RPi.GPIO
 hx711
 peewee
+pigpio

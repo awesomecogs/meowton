@@ -13,8 +13,9 @@ from util import Status
 SERVO_PIN = 18
 PWM_FREQ = 50
 
-SERVO_MAX = 8
-SERVO_MIN = 5
+SERVO_MAX = 2100
+SERVO_STOP = 1500
+SERVO_MIN = 900
 
 ERROR_WEIGHT_BELOW = -1
 ERROR_WEIGHT_ABOVE = 50
@@ -25,9 +26,10 @@ from enum import Enum
 class Feeder(Model):
     """operate the feeder servo and monitor if the food correctly dropped on the food_scale """
 
-    feed_duty = FloatField(default=8)
+    feed_pulsewidth = IntegerField(default=1650)
     feed_time = IntegerField(default=100)
-    reverse_duty = FloatField(default=6)
+    stop_pulsewidth = IntegerField(default=1500)
+    reverse_pulsewidth = IntegerField(default=1350)
     reverse_time = IntegerField(default=500)
 
     empty_weight = FloatField(default=1)
@@ -51,30 +53,38 @@ class Feeder(Model):
         self.status: Status = Status.OK
 
         if not settings.dev_mode:
-            from RPi import GPIO
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(SERVO_PIN, GPIO.OUT)
-            self.__pwm = GPIO.PWM(SERVO_PIN, PWM_FREQ)
-            self.__pwm.start(0)
+            from RPi import GPIO as GPIO
+            import pigpio as pigpio
+            self.__pigpio = pigpio.pi()
+            self.__pigpio.set_mode(SERVO_PIN, pigpio.ALT0)
+            self.__pigpio.set_servo_pulsewidth(SERVO_PIN, 1500)
+
+            # GPIO.setmode(GPIO.BCM)
+            # GPIO.setup(SERVO_PIN, GPIO.OUT)
+            # self.__pwm = GPIO.PWM(SERVO_PIN, PWM_FREQ)
+            # self.__pwm.start(0)
 
     def init(self, food_scale: Scale):
         self.__food_scale = food_scale
 
-    async def run_motor(self, duty, time):
+    async def run_motor(self, pulsewidth, time):
         if settings.dev_mode:
             # simulate
             await asyncio.sleep(time / 1000)
             return
 
-        self.__pwm.ChangeDutyCycle(duty)
+
+        #self.__pwm.ChangeDutyCycle(duty)
+        self.__pigpio.set_servo_pulsewidth(SERVO_PIN, pulsewidth)
         await asyncio.sleep(time / 1000)
-        self.__pwm.ChangeDutyCycle(0)
+        #self.__pwm.ChangeDutyCycle(0)
+        self.__pigpio.set_servo_pulsewidth(SERVO_PIN, 1500)
 
     async def forward(self):
-        await self.run_motor(self.feed_duty, self.feed_time)
+        await self.run_motor(self.feed_pulsewidth, self.feed_time)
 
     async def __reverse(self):
-        await self.run_motor(self.reverse_duty, self.reverse_time)
+        await self.run_motor(self.reverse_pulsewidth, self.reverse_time)
 
     def __log(self, status: Status, msg: str, log: str):
         """update status for GUI feedback"""

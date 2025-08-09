@@ -1,8 +1,6 @@
 import asyncio
 
-
 import settings
-
 
 from cat_detector import CatDetector
 from feeder import Feeder
@@ -14,22 +12,23 @@ class StatusLed():
     def __init__(self):
 
         if not settings.dev_mode:
-            from RPi import GPIO
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(LED_PIN, GPIO.OUT)
+            import pigpio
+            self.__pigpio = pigpio.pi()
+            self.__pigpio.set_mode(LED_PIN, pigpio.OUTPUT)
 
 
     async def task(self, feeder:Feeder, cat_detector:CatDetector):
         if settings.dev_mode:
             return
+        import pigpio
         while True:
             if feeder.status==Status.OK and cat_detector.status==Status.OK:
-                GPIO.output(LED_PIN, GPIO.HIGH)
+                self.__pigpio.write(LED_PIN, pigpio.ON)
                 await asyncio.sleep(1)
-                GPIO.output(LED_PIN, GPIO.LOW)
+                self.__pigpio.write(LED_PIN, pigpio.OFF)
                 await asyncio.sleep(0.1)
             else:
-                GPIO.output(LED_PIN, GPIO.HIGH)
+                self.__pigpio.write(LED_PIN, pigpio.ON)
                 await asyncio.sleep(0.1)
-                GPIO.output(LED_PIN, GPIO.LOW)
+                self.__pigpio.write(LED_PIN, pigpio.OFF)
                 await asyncio.sleep(0.1)
