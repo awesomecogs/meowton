@@ -147,6 +147,7 @@ class Feeder(Model):
             if attempts >= self.retry_max:
                 self.__log(Status.ERROR, "Refill!", f"PLEASE REFILL AND TOUCH SCALE")
                 await self.wait_for_food(60)
+                await self.__reverse()
 
         self.__log(Status.OK, "Food ready", f"Ready: {self.__food_scale.last_stable_weight:0.2f}g")
         self.feeding = False
